@@ -1,5 +1,4 @@
-use crate::{errors::CLIError, SetupArgs};
-use clickhouse::Client;
+use crate::{errors::CLIError, operators::clickhouse_operators::get_clickhouse_client_and_ping, SetupArgs};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 
@@ -38,20 +37,6 @@ impl RequiredSetupArgs {
     }
 }
 
-pub async fn check_args(args: RequiredSetupArgs) -> Result<(), CLIError> {
-    let client = Client::default()
-        .with_url(args.url)
-        .with_user(args.user)
-        .with_password(args.password)
-        .with_database(args.database)
-        .with_option("async_insert", "1")
-        .with_option("wait_for_async_insert", "0");
-
-    client.query("SELECT 1").fetch_one::<_>().await?;
-
-    Ok(())
-}
-
 pub async fn setup_command(args: SetupArgs) -> Result<(), CLIError> {
     let migrations_dir = std::env::current_dir()?.join("migrations");
 
@@ -70,7 +55,7 @@ pub async fn setup_command(args: SetupArgs) -> Result<(), CLIError> {
         RequiredSetupArgs::from_setup_args(SetupArgs::from_envs())
     }?;
 
-    check_args(args.clone()).await?;
+    get_clickhouse_client_and_ping(args.clone()).await?;
 
     let toml_config_file = std::env::current_dir()?.join("chm.toml");
 

@@ -11,15 +11,6 @@ pub struct MigrationRow {
     ran_at: OffsetDateTime,
 }
 
-pub async fn migrations_table_exists(client: clickhouse::Client) -> Result<bool, CLIError> {
-    let migration_row = client
-        .query("EXISTS ch_migrations")
-        .fetch_one::<u8>()
-        .await?;
-
-    Ok(migration_row == 1)
-}
-
 pub async fn create_migrations_table_if_exists(client: clickhouse::Client) -> Result<(), CLIError> {
     client
         .query(
@@ -35,12 +26,16 @@ pub async fn create_migrations_table_if_exists(client: clickhouse::Client) -> Re
         .map_err(|e| e.into())
 }
 
-pub async fn client_factory(args: RequiredSetupArgs) -> Client {
-    return Client::default()
+pub async fn get_clickhouse_client_and_ping(args: RequiredSetupArgs) -> Result<Client, CLIError> {
+    let client = Client::default()
         .with_url(args.url)
         .with_user(args.user)
         .with_password(args.password)
         .with_database(args.database)
         .with_option("async_insert", "1")
         .with_option("wait_for_async_insert", "0");
+
+    client.query("SELECT 1").execute().await?;
+
+    Ok(client)
 }
