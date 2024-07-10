@@ -1,8 +1,9 @@
 use crate::{errors::CLIError, SetupArgs};
+use clickhouse::Client;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct RequiredSetupArgs {
     pub url: String,
     pub user: String,
@@ -37,14 +38,26 @@ impl RequiredSetupArgs {
     }
 }
 
+pub async fn check_args(args: RequiredSetupArgs) -> Result<(), CLIError> {
+    let client = Client::default()
+        .with_url(args.url)
+        .with_user(args.user)
+        .with_password(args.password)
+        .with_database(args.database)
+        .with_option("async_insert", "1")
+        .with_option("wait_for_async_insert", "0");
+
+    client.query("SELECT 1").fetch_one::<_>().await?;
+
+    Ok(())
+}
+
 pub async fn setup_command(args: SetupArgs) -> Result<(), CLIError> {
     let migrations_dir = std::env::current_dir()?.join("migrations");
 
     if migrations_dir.is_dir() {
         return Err(CLIError::BadArgs("migrations already exists".to_string()));
     }
-
-    tokio::fs::create_dir(migrations_dir).await?;
 
     // if any cli arg is given, use it instead
     let args = if args.user.is_some()
@@ -56,6 +69,8 @@ pub async fn setup_command(args: SetupArgs) -> Result<(), CLIError> {
     } else {
         RequiredSetupArgs::from_setup_args(SetupArgs::from_envs())
     }?;
+
+    check_args(args.clone()).await?;
 
     let toml_config_file = std::env::current_dir()?.join("chm.toml");
 
@@ -71,6 +86,8 @@ pub async fn setup_command(args: SetupArgs) -> Result<(), CLIError> {
         .map_err(|_| CLIError::InternalError("Failed to write to toml file".to_string()))?;
 
     toml_file.write(toml_data.as_bytes()).await?;
+
+    tokio::fs::create_dir(migrations_dir).await?;
 
     Ok(())
 }

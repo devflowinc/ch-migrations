@@ -10,6 +10,8 @@ pub enum CLIError {
     InternalError(String),
     #[display(fmt = "NotImplemented")]
     NotImplemented,
+    #[display(fmt = "DBError: {_0}")]
+    DBError(String)
 }
 
 impl From<std::io::Error> for CLIError {
@@ -21,5 +23,12 @@ impl From<std::io::Error> for CLIError {
 impl From<VarError> for CLIError {
     fn from(value: VarError) -> Self {
         Self::BadArgs(format!("{:?}", value))
+    }
+}
+
+impl From<clickhouse::error::Error> for CLIError {
+    fn from(value: clickhouse::error::Error) -> Self {
+        Self::DBError(value.to_string())
+        
     }
 }

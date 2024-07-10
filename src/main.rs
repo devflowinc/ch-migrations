@@ -2,6 +2,7 @@ use clap::{Args, Parser, Subcommand};
 use commands::{generate::generate_command, run::run_command, setup::setup_command};
 use errors::CLIError;
 mod commands;
+mod operators;
 mod errors;
 
 #[derive(Parser)]
