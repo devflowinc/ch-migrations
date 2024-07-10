@@ -8,6 +8,8 @@ pub enum CLIError {
     BadArgs(String),
     #[display(fmt = "InternalError: {_0}")]
     InternalError(String),
+    #[display(fmt = "NotImplemented")]
+    NotImplemented,
 }
 
 impl From<std::io::Error> for CLIError {

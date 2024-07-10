@@ -1,5 +1,5 @@
 use clap::{Args, Parser, Subcommand};
-use commands::setup::setup_command;
+use commands::{generate::generate_command, run::run_command, setup::setup_command};
 use errors::CLIError;
 mod commands;
 mod errors;
@@ -18,24 +18,24 @@ enum Commands {
     /// if migrations folder already exists.
     Setup(SetupArgs),
     /// Command to generate a sub folder with up and down migrations
-    #[command(subcommand)]
-    Generate,
+    Generate(GenerateArgs),
     /// Command to first identify pending migrations and run the new up migrations
-    #[command(subcommand)]
     Run,
     /// Command to revert and then apply the latest migration
-    #[command(subcommand)]
     Redo,
     /// Command to revert last migration
-    #[command(subcommand)]
     Revert,
 }
 
 #[derive(Args, Clone)]
 struct SetupArgs {
+    /// Clickhouse URL
     pub url: Option<String>,
+    /// Clickhouse User
     pub user: Option<String>,
+    /// Clickhouse Password
     pub password: Option<String>,
+    /// Clickhouse Database
     pub database: Option<String>,
 }
 
@@ -54,12 +54,21 @@ impl SetupArgs {
     }
 }
 
+#[derive(Args, Debug)]
+struct GenerateArgs {
+    /// Name of the migration to be generated
+    pub name: String,
+}
+
 #[tokio::main]
 async fn main() {
     let args = Cli::parse();
 
     let res: Result<(), CLIError> = match args.command {
         Commands::Setup(args) => setup_command(args).await,
+        Commands::Run => run_command().await,
+        Commands::Generate(args) => generate_command(args).await,
+        _ => Err(CLIError::NotImplemented),
     };
 
     if let Err(e) = res {

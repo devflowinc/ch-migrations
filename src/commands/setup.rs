@@ -1,9 +1,9 @@
 use crate::{errors::CLIError, SetupArgs};
 use serde::{Deserialize, Serialize};
-use tokio::{fs::File, io::AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 
-#[derive(Deserialize, Serialize)]
-struct RequiredSetupArgs {
+#[derive(Deserialize, Serialize, Debug)]
+pub struct RequiredSetupArgs {
     pub url: String,
     pub user: String,
     pub password: String,
@@ -30,13 +30,14 @@ impl RequiredSetupArgs {
 
     pub async fn from_toml_file() -> Result<Self, CLIError> {
         let toml_file_path = std::env::current_dir()?.join("chm.toml");
-        let toml_data = tokio::fs::read(toml_file_path).await?;
-        let args = toml::from_str(toml_data)?;
-        args
+        let toml_data = tokio::fs::read_to_string(toml_file_path).await?;
+
+        toml::from_str::<RequiredSetupArgs>(toml_data.as_str())
+            .map_err(|_| CLIError::InternalError("Failed to get args from toml file".to_string()))
     }
 }
 
-pub async fn setup_migration_directory() -> Result<(), CLIError> {
+pub async fn setup_command(args: SetupArgs) -> Result<(), CLIError> {
     let migrations_dir = std::env::current_dir()?.join("migrations");
 
     if migrations_dir.is_dir() {
@@ -45,10 +46,6 @@ pub async fn setup_migration_directory() -> Result<(), CLIError> {
 
     tokio::fs::create_dir(migrations_dir).await?;
 
-    Ok(())
-}
-
-pub async fn setup_command(args: SetupArgs) -> Result<(), CLIError> {
     // if any cli arg is given, use it instead
     let args = if args.user.is_some()
         || args.database.is_some()
@@ -68,11 +65,12 @@ pub async fn setup_command(args: SetupArgs) -> Result<(), CLIError> {
         ));
     }
 
-    let toml_file = tokio::fs::File::create(toml_config_file).await?;
+    let mut toml_file = tokio::fs::File::create(toml_config_file).await?;
 
-    let toml_data = toml::to_string(&args)?;
+    let toml_data = toml::to_string(&args)
+        .map_err(|_| CLIError::InternalError("Failed to write to toml file".to_string()))?;
 
-    toml_file.write(toml_data).await?;
+    toml_file.write(toml_data.as_bytes()).await?;
 
     Ok(())
 }
