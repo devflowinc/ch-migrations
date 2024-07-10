@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use chrono::{DateTime, Utc};
 
 use crate::errors::CLIError;
@@ -34,6 +36,12 @@ pub async fn get_migrations_from_dir() -> Result<Vec<MigrationOnDisk>, CLIError>
 
         migrations.push(MigrationOnDisk::from_str(file_name)?)
     }
+
+    migrations.sort_by(|a, b| {
+        a.timestamp
+            .partial_cmp(&b.timestamp)
+            .unwrap_or(Ordering::Less)
+    });
 
     Ok(migrations)
 }
