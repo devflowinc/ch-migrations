@@ -1,0 +1,11 @@
+[package]
+name = "ch-migrations"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.3", features = ["derive", "env"] }
+tokio = { version = "1.37.0", features = ["full"] }
+derive_more = { version = "0.99.7" }
+toml = { version = "0.8.14" }
+erde = { version = "1.0", features = ["derive"] }
