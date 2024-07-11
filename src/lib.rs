@@ -3,3 +3,4 @@
 mod commands;
 mod errors;
 mod operators;
+pub mod tools;

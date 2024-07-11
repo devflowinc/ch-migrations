@@ -7,6 +7,7 @@ use errors::CLIError;
 mod commands;
 mod errors;
 mod operators;
+mod tools;
 
 #[tokio::main]
 async fn main() {

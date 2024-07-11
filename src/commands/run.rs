@@ -1,7 +1,7 @@
 use crate::{
-    commands::SetupArgs,
-    errors::CLIError,
-    operators::clickhouse_operators::{get_clickhouse_client_and_ping, run_pending_migrations},
+    commands::SetupArgs, errors::CLIError,
+    operators::clickhouse_operators::get_clickhouse_client_and_ping,
+    tools::migrations::run_pending_migrations,
 };
 
 pub async fn run_command() -> Result<(), CLIError> {
