@@ -1,6 +1,6 @@
 [package]
 name = "chm"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 authors = ["Trieve <developers@trieve.ai>"]
 license = "MIT"
@@ -12,7 +12,7 @@ keywords = ["cli", "migrations", "clickhouse"]
 categories = ["command-line-utilities", "database"]
 
 [dependencies]
-clap = { version = "4.5.3", features = ["derive", "env"] }
+clap = { version = "4.5.3", features = ["derive", "env"], optional = true }
 tokio = { version = "1.37.0", features = ["full"] }
 derive_more = { version = "0.99.7" }
 toml = { version = "0.8.14" }
@@ -21,3 +21,7 @@ clickhouse = { version = "0.11.6", features = ["time"] }
 chrono = "0.4.38"
 time = "0.3.36"
 dotenvy = "0.15.7"
+
+[features]
+default = ["dep:clap"]
+lib = []

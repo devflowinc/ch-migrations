@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{commands::SetupArgs, errors::CLIError};
 
-use super::migrations_operators::{get_migrations_from_dir, MigrationOnDisk};
+use super::migrations_operators::MigrationOnDisk;
 
 #[derive(Row, Serialize, Deserialize, Debug, Clone)]
 pub struct MigrationRow {
