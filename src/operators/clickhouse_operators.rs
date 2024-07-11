@@ -2,7 +2,7 @@ use chrono::Utc;
 use clickhouse::{Client, Row};
 use serde::{Deserialize, Serialize};
 
-use crate::{commands::SetupArgs, errors::CLIError};
+use crate::{errors::CLIError, tools::migrations::SetupArgs};
 
 use super::migrations_operators::MigrationOnDisk;
 

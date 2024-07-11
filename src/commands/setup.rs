@@ -1,6 +1,6 @@
 use crate::{
-    commands::SetupArgs, errors::CLIError,
-    operators::clickhouse_operators::get_clickhouse_client_and_ping,
+    errors::CLIError, operators::clickhouse_operators::get_clickhouse_client_and_ping,
+    tools::migrations::SetupArgs,
 };
 use tokio::io::AsyncWriteExt;
 

@@ -1,5 +1,4 @@
 use crate::{
-    commands::SetupArgs,
     errors::CLIError,
     operators::{
         clickhouse_operators::{
@@ -8,6 +7,7 @@ use crate::{
         },
         migrations_operators::get_migrations_from_dir,
     },
+    tools::migrations::SetupArgs,
 };
 
 pub async fn revert_commmand() -> Result<(), CLIError> {
