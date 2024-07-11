@@ -1,15 +1,12 @@
+use clap::{Args, Parser, Subcommand};
+use serde::{Deserialize, Serialize};
+
 pub mod generate;
 pub mod redo;
 pub mod revert;
 pub mod run;
 pub mod setup;
 
-#[cfg(feature = "default")]
-use clap::{Args, Parser, Subcommand};
-#[cfg(feature = "default")]
-use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "default")]
 #[derive(Parser)]
 #[command(author, version)]
 #[command(name = "chm", about = "Clickhouse migration tool")]
@@ -18,7 +15,6 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[cfg(feature = "default")]
 #[derive(Subcommand)]
 pub enum Commands {
     /// Creates a folder to contain migrations and a .toml file with connection details, will error
@@ -29,7 +25,6 @@ pub enum Commands {
     Migration(MigrationCommands),
 }
 
-#[cfg(feature = "default")]
 #[derive(Subcommand)]
 pub enum MigrationCommands {
     Generate(GenerateArgs),
@@ -40,7 +35,7 @@ pub enum MigrationCommands {
     /// Command to revert last migration
     Revert,
 }
-#[cfg(feature = "default")]
+
 #[derive(Args, Clone, Deserialize, Serialize)]
 pub struct SetupArgs {
     /// Clickhouse URL
@@ -56,7 +51,7 @@ pub struct SetupArgs {
     #[arg(env = "CLICKHOUSE_DB", default_value = None)]
     pub database: Option<String>,
 }
-#[cfg(feature = "default")]
+
 #[derive(Args, Debug)]
 pub struct GenerateArgs {
     /// Name of the migration to be generated
