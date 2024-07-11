@@ -6,7 +6,7 @@ pub async fn generate_command(args: GenerateArgs) -> Result<(), CLIError> {
 
     let migration_dir = migrations_dir.join(format!(
         "{}_{}",
-        Utc::now().format("%Y-%m-%d-%H%M%S"),
+        Utc::now().format("%Y-%m-%d-%H-%M-%S"),
         args.name
     ));
 

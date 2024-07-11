@@ -1,12 +1,15 @@
+use chrono::Utc;
 use clickhouse::{Client, Row};
 use serde::{Deserialize, Serialize};
 
 use crate::{commands::setup::RequiredSetupArgs, errors::CLIError};
 
-#[derive(Row, Serialize, Deserialize, Debug)]
+use super::migrations_operators::MigrationOnDisk;
+
+#[derive(Row, Serialize, Deserialize, Debug, Clone)]
 pub struct MigrationRow {
-    version: String,
-    ran_at: Option<u32>,
+    pub version: String,
+    pub ran_at: i64,
 }
 
 pub async fn create_migrations_table_if_exists(client: clickhouse::Client) -> Result<(), CLIError> {
@@ -15,9 +18,9 @@ pub async fn create_migrations_table_if_exists(client: clickhouse::Client) -> Re
             "
             CREATE TABLE IF NOT EXISTS ch_migrations (
                 version String,
-                ran_at Nullable(DateTime),
-                PRIMARY KEY(version),
+                ran_at DateTime,
                 ) ENGINE = MergeTree()
+            ORDER BY(ran_at, version)
             ",
         )
         .execute()
@@ -27,14 +30,11 @@ pub async fn create_migrations_table_if_exists(client: clickhouse::Client) -> Re
 
 pub async fn drop_migrations_table_if_exists(client: clickhouse::Client) -> Result<(), CLIError> {
     client
-        .query(
-            "DROP TABLE IF EXISTS ch_migrations"
-        )
+        .query("DROP TABLE IF EXISTS ch_migrations")
         .execute()
         .await
         .map_err(|e| e.into())
 }
-
 
 pub async fn get_clickhouse_client_and_ping(args: RequiredSetupArgs) -> Result<Client, CLIError> {
     let client = Client::default()
@@ -56,10 +56,27 @@ pub async fn get_migrations_from_clickhouse(
     let migrations = client
         .query(
             "
-        SELECT ?fields FROM ch_migrations ORDER BY ran_at NULLS LAST
+        SELECT ?fields FROM ch_migrations ORDER BY ran_at
         ",
         )
         .fetch_all::<MigrationRow>()
         .await?;
     Ok(migrations)
+}
+
+pub async fn apply_migrations_from_local(
+    client: clickhouse::Client,
+    migrations: Vec<MigrationOnDisk>,
+) -> Result<(), CLIError> {
+    let mut insert = client.insert::<MigrationRow>("ch_migrations")?;
+    for migration in &migrations {
+        insert
+            .write(&MigrationRow {
+                ran_at: Utc::now().timestamp(),
+                version: migration.timestamp.format("%Y-%m-%d-%H%M%S").to_string(),
+            })
+            .await?;
+        client.query(&migration.up_query).execute().await?;
+    }
+    Ok(())
 }
