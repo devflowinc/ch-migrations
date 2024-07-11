@@ -1,4 +1,4 @@
-use crate::{errors::CLIError, GenerateArgs};
+use crate::{commands::GenerateArgs, errors::CLIError};
 use chrono::prelude::*;
 
 pub async fn generate_command(args: GenerateArgs) -> Result<(), CLIError> {
@@ -18,7 +18,7 @@ pub async fn generate_command(args: GenerateArgs) -> Result<(), CLIError> {
     tokio::fs::File::create(up_file.clone()).await?;
     tokio::fs::File::create(down_file.clone()).await?;
 
-    println!("Up.sql created at: {}", up_file.display());
-    println!("Down.sql created at: {}", down_file.display());
+    println!("Creating: {}", up_file.display());
+    println!("Creating: {}", down_file.display());
     Ok(())
 }
