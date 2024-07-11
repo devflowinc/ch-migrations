@@ -2,17 +2,17 @@ use chrono::Utc;
 use clickhouse::{Client, Row};
 use serde::{Deserialize, Serialize};
 
-use crate::{commands::setup::RequiredSetupArgs, errors::CLIError};
+use crate::{errors::CLIError, SetupArgs};
 
-use super::migrations_operators::MigrationOnDisk;
+use super::migrations_operators::{get_migrations_from_dir, MigrationOnDisk};
 
 #[derive(Row, Serialize, Deserialize, Debug, Clone)]
 pub struct MigrationRow {
     pub version: String,
-    pub ran_at: i64,
+    pub ran_at: u32,
 }
 
-pub async fn create_migrations_table_if_exists(client: clickhouse::Client) -> Result<(), CLIError> {
+pub async fn create_migrations_table(client: clickhouse::Client) -> Result<(), CLIError> {
     client
         .query(
             "
@@ -28,22 +28,38 @@ pub async fn create_migrations_table_if_exists(client: clickhouse::Client) -> Re
         .map_err(|e| e.into())
 }
 
-pub async fn drop_migrations_table_if_exists(client: clickhouse::Client) -> Result<(), CLIError> {
-    client
-        .query("DROP TABLE IF EXISTS ch_migrations")
-        .execute()
-        .await
-        .map_err(|e| e.into())
+pub async fn check_if_migrations_table_exists(
+    client: clickhouse::Client,
+) -> Result<bool, CLIError> {
+    let table_exists = client
+        .query(
+            "
+            SELECT name FROM system.tables WHERE name = 'ch_migrations'
+            ",
+        )
+        .fetch_all::<String>()
+        .await?;
+
+    Ok(table_exists.len() > 0)
 }
 
-pub async fn get_clickhouse_client_and_ping(args: RequiredSetupArgs) -> Result<Client, CLIError> {
-    let client = Client::default()
-        .with_url(args.url)
-        .with_user(args.user)
-        .with_password(args.password)
-        .with_database(args.database)
-        .with_option("async_insert", "1")
-        .with_option("wait_for_async_insert", "0");
+pub async fn get_clickhouse_client_and_ping(args: SetupArgs) -> Result<Client, CLIError> {
+    let mut client = Client::default().with_url(
+        args.url
+            .ok_or(CLIError::BadArgs("Missing URL".to_string()))?,
+    );
+
+    if let Some(user) = args.user {
+        client = client.with_user(user);
+    }
+
+    if let Some(password) = args.password {
+        client = client.with_password(password);
+    }
+
+    if let Some(database) = args.database {
+        client = client.with_database(database);
+    }
 
     client.query("SELECT 1").execute().await?;
 
@@ -64,19 +80,120 @@ pub async fn get_migrations_from_clickhouse(
     Ok(migrations)
 }
 
-pub async fn apply_migrations_from_local(
+pub async fn run_pending_migrations(client: clickhouse::Client) -> Result<(), CLIError> {
+    create_migrations_table(client.clone()).await?;
+
+    let local_migrations = get_migrations_from_dir().await?;
+
+    let applied_migrations = get_migrations_from_clickhouse(client.clone()).await?;
+
+    let local_migrations_not_in_db: Vec<MigrationOnDisk> = local_migrations
+        .iter()
+        .filter_map(|m| {
+            if applied_migrations
+                .iter()
+                .find(|applied_migration| {
+                    return applied_migration.version == m.version;
+                })
+                .is_some()
+            {
+                return None;
+            }
+            Some(m.clone())
+        })
+        .collect();
+
+    ensure_migrations_sync(local_migrations.clone(), applied_migrations).await?;
+
+    apply_migrations(client.clone(), local_migrations_not_in_db).await?;
+
+    Ok(())
+}
+
+pub async fn apply_migrations(
     client: clickhouse::Client,
     migrations: Vec<MigrationOnDisk>,
 ) -> Result<(), CLIError> {
-    let mut insert = client.insert::<MigrationRow>("ch_migrations")?;
     for migration in &migrations {
+        let mut insert = client.insert::<MigrationRow>("ch_migrations")?;
+
         insert
             .write(&MigrationRow {
-                ran_at: Utc::now().timestamp(),
-                version: migration.timestamp.format("%Y-%m-%d-%H%M%S").to_string(),
+                ran_at: Utc::now().timestamp() as u32,
+                version: migration.version.clone(),
             })
             .await?;
-        client.query(&migration.up_query).execute().await?;
+
+        let up_query = migration.get_up_query().await?;
+        let queries = up_query
+            .split(';')
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<&str>>();
+
+        println!("Running migration {}", migration.name);
+
+        for query in queries {
+            client.query(&query).execute().await?;
+        }
+
+        insert.end().await?;
     }
+    Ok(())
+}
+
+pub async fn undo_migration(
+    client: clickhouse::Client,
+    migration: MigrationOnDisk,
+) -> Result<(), CLIError> {
+    let down_query = migration.get_down_query().await?;
+    let queries = down_query
+        .split(';')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<&str>>();
+
+    println!("Reverting migration {}", migration.name);
+
+    for query in queries {
+        client.query(&query).execute().await?;
+    }
+
+    client
+        .query(
+            format!(
+                "DELETE FROM ch_migrations WHERE version = '{}'",
+                migration.version
+            )
+            .as_str(),
+        )
+        .execute()
+        .await?;
+
+    Ok(())
+}
+
+pub async fn ensure_migrations_sync(
+    local_migrations: Vec<MigrationOnDisk>,
+    applied_migrations: Vec<MigrationRow>,
+) -> Result<(), CLIError> {
+    let db_migrations_not_in_local: Vec<MigrationRow> = applied_migrations
+        .iter()
+        .filter_map(|applied_migration| {
+            if local_migrations
+                .iter()
+                .find(|lm| lm.version == applied_migration.version)
+                .is_some()
+            {
+                return None;
+            }
+            Some(applied_migration.clone())
+        })
+        .collect();
+
+    if db_migrations_not_in_local.len() > 0 {
+        return Err(CLIError::BadArgs(
+            "Your local migrations and the database migrations are out of sync!".to_string(),
+        ));
+    }
+
     Ok(())
 }

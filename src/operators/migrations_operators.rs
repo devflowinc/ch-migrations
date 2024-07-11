@@ -1,14 +1,12 @@
 use std::{cmp::Ordering, path::PathBuf};
 
-use chrono::NaiveDateTime;
-
 use crate::errors::CLIError;
 
 #[derive(Debug, Clone)]
 pub struct MigrationOnDisk {
-    pub timestamp: NaiveDateTime,
-    pub up_query: String,
-    pub down_query: String,
+    pub version: String,
+    pub name: String,
+    pub path: PathBuf,
 }
 
 impl MigrationOnDisk {
@@ -18,6 +16,7 @@ impl MigrationOnDisk {
                 "Migration file has no file name".to_string(),
             ));
         }
+
         let name = path
             .file_name()
             .unwrap()
@@ -25,40 +24,45 @@ impl MigrationOnDisk {
             .into_string()
             .map_err(|_| CLIError::BadArgs("Invalid migration file name".to_string()))?;
 
-        let (timestamp, _) = name.split_once("_").expect("valid migration file name");
-        println!("{timestamp}");
-
-        let timestamp = chrono::NaiveDateTime::parse_from_str(timestamp, "%Y-%m-%d-%H-%M-%S")
-            .map_err(|_| {
-                CLIError::InternalError("Failed to parse migration file timestamp".to_string())
-            })?;
-
-        let up_file = tokio::fs::read_to_string(path.join("up.sql")).await?;
-
-        let down_file = tokio::fs::read_to_string(path.join("down.sql")).await?;
+        let (version, _) = name.split_once("_").expect("Invalid migration file name");
 
         Ok(Self {
-            timestamp: timestamp.into(),
-            up_query: up_file,
-            down_query: down_file,
+            version: version.into(),
+            name,
+            path,
         })
+    }
+
+    pub async fn get_up_query(&self) -> Result<String, CLIError> {
+        tokio::fs::read_to_string(self.path.join("up.sql"))
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn get_down_query(&self) -> Result<String, CLIError> {
+        tokio::fs::read_to_string(self.path.join("down.sql"))
+            .await
+            .map_err(Into::into)
     }
 }
 
 pub async fn get_migrations_from_dir() -> Result<Vec<MigrationOnDisk>, CLIError> {
-    let migrations_dir = std::env::current_dir()?.join("migrations");
+    let migrations_dir = std::env::current_dir()?.join("ch_migrations");
     let mut reader = tokio::fs::read_dir(migrations_dir).await?;
     let mut migrations = Vec::new();
 
     while let Some(entry) = reader.next_entry().await? {
+        if entry
+            .file_name()
+            .to_str()
+            .is_some_and(|s| s.starts_with("chm.toml"))
+        {
+            continue;
+        }
         migrations.push(MigrationOnDisk::from_str(entry.path()).await?)
     }
 
-    migrations.sort_by(|a, b| {
-        a.timestamp
-            .partial_cmp(&b.timestamp)
-            .unwrap_or(Ordering::Less)
-    });
+    migrations.sort_by(|a, b| a.version.partial_cmp(&b.version).unwrap_or(Ordering::Less));
 
     Ok(migrations)
 }

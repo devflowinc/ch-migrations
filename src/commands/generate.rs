@@ -2,13 +2,15 @@ use crate::{errors::CLIError, GenerateArgs};
 use chrono::prelude::*;
 
 pub async fn generate_command(args: GenerateArgs) -> Result<(), CLIError> {
-    let migrations_dir = std::env::current_dir()?.join("migrations");
+    let migrations_dir = std::env::current_dir()?.join("ch_migrations");
 
-    let migration_dir = migrations_dir.join(format!(
-        "{}_{}",
-        Utc::now().format("%Y-%m-%d-%H-%M-%S"),
-        args.name
-    ));
+    if !migrations_dir.is_dir() {
+        return Err(CLIError::BadArgs(
+            "Migrations directory does not exist. Please run chm setup first!".to_string(),
+        ));
+    }
+
+    let migration_dir = migrations_dir.join(format!("{}_{}", Utc::now().timestamp(), args.name));
 
     tokio::fs::create_dir(migration_dir.clone()).await?;
 

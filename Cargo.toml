@@ -1,7 +1,15 @@
 [package]
-name = "ch-migrations"
+name = "chm"
 version = "0.1.0"
 edition = "2021"
+authors = ["Trieve <developers@trieve.ai>"]
+license = "MIT"
+description = "Migrations CLI tool for ClickHouse"
+readme = "README.md"
+homepage = "https://github.com/devflowinc/ch-migrations"
+repository = "https://github.com/devflowinc/ch-migrations"
+keywords = ["cli", "migrations", "clickhouse"]
+categories = ["command-line-utilities", "clickhouse", "migrations"]
 
 [dependencies]
 clap = { version = "4.5.3", features = ["derive", "env"] }
@@ -12,4 +20,4 @@ serde = { version = "1.0", features = ["derive"] }
 clickhouse = { version = "0.11.6", features = ["time"] }
 chrono = "0.4.38"
 time = "0.3.36"
-
+dotenvy = "0.15.7"
