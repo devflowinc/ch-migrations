@@ -14,7 +14,7 @@ async fn main() {
     let err = dotenvy::dotenv();
 
     if let Err(e) = err {
-        eprintln!("Error: {}", e);
+        eprintln!("Env not found: {}", e);
         std::process::exit(1);
     }
 
