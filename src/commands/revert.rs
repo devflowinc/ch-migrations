@@ -24,6 +24,9 @@ pub async fn revert_commmand() -> Result<(), CLIError> {
 
     let applied_migrations = get_migrations_from_clickhouse(client.clone()).await?;
 
+    dbg!(&local_migrations);
+    dbg!(&applied_migrations);
+
     ensure_migrations_sync(local_migrations.clone(), applied_migrations).await?;
 
     undo_migration(
