@@ -95,10 +95,12 @@ pub async fn apply_migrations(
             .await?;
 
         let up_query = migration.get_up_query().await?;
-        let queries = up_query
+        let mut queries = up_query
             .split(';')
             .filter(|s| !s.is_empty())
             .collect::<Vec<&str>>();
+
+        queries.truncate(queries.len().saturating_sub(1));
 
         println!("Running migration {}", migration.name);
 
@@ -116,10 +118,12 @@ pub async fn undo_migration(
     migration: MigrationOnDisk,
 ) -> Result<(), CLIError> {
     let down_query = migration.get_down_query().await?;
-    let queries = down_query
+    let mut queries = down_query
         .split(';')
         .filter(|s| !s.is_empty())
         .collect::<Vec<&str>>();
+
+    queries.truncate(queries.len().saturating_sub(1));
 
     println!("Reverting migration {}", migration.name);
 
