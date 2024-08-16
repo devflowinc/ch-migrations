@@ -1,5 +1,4 @@
 use clap::{Args, Parser, Subcommand};
-use serde::{Deserialize, Serialize};
 
 use crate::tools::migrations::SetupArgs;
 

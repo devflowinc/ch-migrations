@@ -27,7 +27,7 @@ impl SetupArgs {
         let toml_data = toml::to_string(self)
             .map_err(|_| CLIError::InternalError("Failed to write to toml file".to_string()))?;
 
-        toml_file.write(toml_data.as_bytes()).await?;
+        toml_file.write_all(toml_data.as_bytes()).await?;
 
         Ok(())
     }

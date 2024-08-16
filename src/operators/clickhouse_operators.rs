@@ -40,7 +40,7 @@ pub async fn check_if_migrations_table_exists(
         .fetch_all::<String>()
         .await?;
 
-    Ok(table_exists.len() > 0)
+    Ok(!table_exists.is_empty())
 }
 
 pub async fn get_clickhouse_client_and_ping(args: SetupArgs) -> Result<Client, CLIError> {
@@ -100,12 +100,10 @@ pub async fn apply_migrations(
             .filter(|s| !s.is_empty())
             .collect::<Vec<&str>>();
 
-        queries.truncate(queries.len().saturating_sub(1));
-
         println!("Running migration {}", migration.name);
 
         for query in queries {
-            client.query(&query).execute().await?;
+            client.query(query).execute().await?;
         }
 
         insert.end().await?;
@@ -128,7 +126,7 @@ pub async fn undo_migration(
     println!("Reverting migration {}", migration.name);
 
     for query in queries {
-        client.query(&query).execute().await?;
+        client.query(query).execute().await?;
     }
 
     client
@@ -154,8 +152,7 @@ pub async fn ensure_migrations_sync(
         .filter_map(|applied_migration| {
             if local_migrations
                 .iter()
-                .find(|lm| lm.version == applied_migration.version)
-                .is_some()
+                .any(|lm| lm.version == applied_migration.version)
             {
                 return None;
             }
@@ -163,7 +160,7 @@ pub async fn ensure_migrations_sync(
         })
         .collect();
 
-    if db_migrations_not_in_local.len() > 0 {
+    if !db_migrations_not_in_local.is_empty() {
         return Err(CLIError::BadArgs(
             "Your local migrations and the database migrations are out of sync!".to_string(),
         ));

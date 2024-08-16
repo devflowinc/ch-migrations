@@ -14,7 +14,7 @@ pub async fn revert_commmand() -> Result<(), CLIError> {
     let config = SetupArgs::from_toml_file().await?;
     let client = get_clickhouse_client_and_ping(config).await?;
 
-    if check_if_migrations_table_exists(client.clone()).await? == false {
+    if !(check_if_migrations_table_exists(client.clone()).await?) {
         return Err(CLIError::BadArgs(
             "Migrations table does not exist. Run chm setup first!".to_string(),
         ));

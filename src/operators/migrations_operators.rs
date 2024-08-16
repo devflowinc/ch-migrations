@@ -24,7 +24,7 @@ impl MigrationOnDisk {
             .into_string()
             .map_err(|_| CLIError::BadArgs("Invalid migration file name".to_string()))?;
 
-        let (version, _) = name.split_once("_").expect("Invalid migration file name");
+        let (version, _) = name.split_once('_').expect("Invalid migration file name");
 
         Ok(Self {
             version: version.into(),

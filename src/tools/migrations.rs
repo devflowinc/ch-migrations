@@ -5,7 +5,7 @@ use crate::{
     errors::CLIError,
     operators::{
         clickhouse_operators::{
-            apply_migrations, create_migrations_table, ensure_migrations_sync,
+            apply_migrations, create_migrations_table,
             get_clickhouse_client_and_ping, get_migrations_from_clickhouse,
         },
         migrations_operators::{get_migrations_from_dir, MigrationOnDisk},
@@ -42,18 +42,13 @@ pub async fn run_pending_migrations(config: SetupArgs) -> Result<(), CLIError> {
         .filter_map(|m| {
             if applied_migrations
                 .iter()
-                .find(|applied_migration| {
-                    return applied_migration.version == m.version;
-                })
-                .is_some()
+                .any(|applied_migration| applied_migration.version == m.version)
             {
                 return None;
             }
             Some(m.clone())
         })
         .collect();
-
-    ensure_migrations_sync(local_migrations.clone(), applied_migrations).await?;
 
     apply_migrations(client.clone(), local_migrations_not_in_db).await?;
 
