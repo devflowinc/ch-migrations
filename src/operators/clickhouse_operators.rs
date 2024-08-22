@@ -104,6 +104,8 @@ pub async fn apply_migrations(
             })
             .collect::<Vec<&str>>();
 
+        println!("Running query {:?}", queries);
+
         println!("Running migration {}", migration.name);
 
         for query in queries {
