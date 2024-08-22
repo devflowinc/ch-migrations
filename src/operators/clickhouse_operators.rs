@@ -97,10 +97,12 @@ pub async fn apply_migrations(
         let up_query = migration.get_up_query().await?;
         let queries = up_query
             .split(';')
-            .filter(|s| !s.is_empty() || !s.contains("--") || s.chars().all(char::is_whitespace))
+            .filter(|s| {
+                !s.is_empty()
+                    || !s.contains("--")
+                    || s.chars().all(|c| c.is_whitespace() || c == '\n')
+            })
             .collect::<Vec<&str>>();
-
-        println!("Running query {:?}", queries);
 
         println!("Running migration {}", migration.name);
 
