@@ -99,8 +99,8 @@ pub async fn apply_migrations(
             .split(';')
             .filter(|s| {
                 !s.is_empty()
-                    || !s.contains("--")
-                    || s.chars().all(|c| c.is_whitespace() || c == '\n')
+                    && !s.contains("--")
+                    && s.chars().all(|c| c.is_whitespace() || c == '\n')
             })
             .collect::<Vec<&str>>();
 
