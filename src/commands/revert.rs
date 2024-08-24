@@ -2,8 +2,7 @@ use crate::{
     errors::CLIError,
     operators::{
         clickhouse_operators::{
-            check_if_migrations_table_exists, ensure_migrations_sync,
-            get_clickhouse_client_and_ping, get_migrations_from_clickhouse, undo_migration,
+            check_if_migrations_table_exists, get_clickhouse_client_and_ping, undo_migration,
         },
         migrations_operators::get_migrations_from_dir,
     },
@@ -21,10 +20,6 @@ pub async fn revert_commmand() -> Result<(), CLIError> {
     }
 
     let local_migrations = get_migrations_from_dir().await?;
-
-    let applied_migrations = get_migrations_from_clickhouse(client.clone()).await?;
-
-    ensure_migrations_sync(local_migrations.clone(), applied_migrations).await?;
 
     undo_migration(
         client.clone(),

@@ -147,28 +147,3 @@ pub async fn undo_migration(
     Ok(())
 }
 
-pub async fn ensure_migrations_sync(
-    local_migrations: Vec<MigrationOnDisk>,
-    applied_migrations: Vec<MigrationRow>,
-) -> Result<(), CLIError> {
-    let db_migrations_not_in_local: Vec<MigrationRow> = applied_migrations
-        .iter()
-        .filter_map(|applied_migration| {
-            if local_migrations
-                .iter()
-                .any(|lm| lm.version == applied_migration.version)
-            {
-                return None;
-            }
-            Some(applied_migration.clone())
-        })
-        .collect();
-
-    if !db_migrations_not_in_local.is_empty() {
-        return Err(CLIError::BadArgs(
-            "Your local migrations and the database migrations are out of sync!".to_string(),
-        ));
-    }
-
-    Ok(())
-}
