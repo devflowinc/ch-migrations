@@ -1,6 +1,6 @@
 [package]
 name = "chm"
-version = "0.1.16"
+version = "0.1.17"
 edition = "2021"
 authors = ["Trieve <developers@trieve.ai>"]
 license = "MIT"
