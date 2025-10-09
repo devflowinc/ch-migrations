@@ -6,6 +6,58 @@ use crate::{errors::CLIError, tools::migrations::SetupArgs};
 
 use super::migrations_operators::MigrationOnDisk;
 
+/// Checks if a string contains only comments and whitespace.
+/// Supports ClickHouse comment types: `--`, `#`, and `/* */`.
+fn is_only_comments_and_whitespace(s: &str) -> bool {
+    let mut chars = s.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        match ch {
+            // Skip whitespace
+            ' ' | '\t' | '\n' | '\r' => continue,
+
+            // Single-line comment starting with --
+            '-' if chars.peek() == Some(&'-') => {
+                chars.next(); // consume second -
+                              // Skip until end of line
+                while let Some(c) = chars.next() {
+                    if c == '\n' {
+                        break;
+                    }
+                }
+            }
+
+            // Single-line comment starting with #
+            '#' => {
+                // Skip until end of line
+                while let Some(c) = chars.next() {
+                    if c == '\n' {
+                        break;
+                    }
+                }
+            }
+
+            // Multi-line comment /* */
+            '/' if chars.peek() == Some(&'*') => {
+                chars.next(); // consume *
+                let mut prev = ' ';
+                // Skip until we find */
+                while let Some(c) = chars.next() {
+                    if prev == '*' && c == '/' {
+                        break;
+                    }
+                    prev = c;
+                }
+            }
+
+            // Any other character means it's not just comments
+            _ => return false,
+        }
+    }
+
+    true
+}
+
 #[derive(Row, Serialize, Deserialize, Debug, Clone)]
 pub struct MigrationRow {
     pub version: String,
@@ -97,11 +149,7 @@ pub async fn apply_migrations(
         let up_query = migration.get_up_query().await?;
         let queries = up_query
             .split(';')
-            .filter(|s| {
-                !s.is_empty()
-                    && !s.contains("--")
-                    && !s.chars().all(|c| c.is_whitespace() || c == '\n')
-            })
+            .filter(|s| !s.is_empty() && !is_only_comments_and_whitespace(s))
             .collect::<Vec<&str>>();
 
         println!("Running migration {}", migration.name);
@@ -146,4 +194,3 @@ pub async fn undo_migration(
 
     Ok(())
 }
-
