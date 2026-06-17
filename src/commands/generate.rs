@@ -1,8 +1,9 @@
 use crate::{commands::GenerateArgs, errors::CLIError};
 use chrono::prelude::*;
+use std::path::Path;
 
-pub async fn generate_command(args: GenerateArgs) -> Result<(), CLIError> {
-    let migrations_dir = std::env::current_dir()?.join("ch_migrations");
+pub async fn generate_command(args: GenerateArgs, source: &Path) -> Result<(), CLIError> {
+    let migrations_dir = std::env::current_dir()?.join(source);
 
     if !migrations_dir.is_dir() {
         return Err(CLIError::BadArgs(

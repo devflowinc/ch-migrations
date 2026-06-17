@@ -1,4 +1,7 @@
-use std::{cmp::Ordering, path::PathBuf};
+use std::{
+    cmp::Ordering,
+    path::{Path, PathBuf},
+};
 
 use crate::errors::CLIError;
 
@@ -46,19 +49,12 @@ impl MigrationOnDisk {
     }
 }
 
-pub async fn get_migrations_from_dir() -> Result<Vec<MigrationOnDisk>, CLIError> {
-    let migrations_dir = std::env::current_dir()?.join("ch_migrations");
+pub async fn get_migrations_from_dir(source: &Path) -> Result<Vec<MigrationOnDisk>, CLIError> {
+    let migrations_dir = std::env::current_dir()?.join(source);
     let mut reader = tokio::fs::read_dir(migrations_dir).await?;
     let mut migrations = Vec::new();
 
     while let Some(entry) = reader.next_entry().await? {
-        if entry
-            .file_name()
-            .to_str()
-            .is_some_and(|s| s.starts_with("chm.toml"))
-        {
-            continue;
-        }
         migrations.push(MigrationOnDisk::from_str(entry.path()).await?)
     }
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Clickhouse Migration Tool (`chm`) is a command-line interface (CLI) designed to help manage database migrations for Clickhouse. It allows users to set up migration configurations, generate new migrations, and run migrations in a stateful manner.
+The Clickhouse Migration Tool (`chm`) is a command-line interface (CLI) designed to help manage database migrations for Clickhouse. It generates new migrations and runs them against ClickHouse in a stateful manner. Connection details are read from environment variables.
 
 ## Installation
 
@@ -12,36 +12,40 @@ To install the Clickhouse Migration Tool, you need to have Rust installed on you
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-Then, you can install trieve from cargo:
+Then install it from the fork:
 
 ```sh
-cargo install chm
+cargo install --git https://github.com/sergafon/clickhouse-migrations
 ```
 
 After installing the tool, you can run the CLI using the `chm` command.
+
+## Connection
+
+Connection details are read from environment variables (a `.env` file in the working directory is loaded automatically):
+
+- `CLICKHOUSE_URL` (required) — ClickHouse HTTP URL, e.g. `http://127.0.0.1:8123`.
+- `CLICKHOUSE_DB` (required) — target database.
+- `CLICKHOUSE_USER` (optional) — applied if set.
+- `CLICKHOUSE_PASSWORD` (optional) — applied if set.
+
+## Migrations directory
+
+Migrations live in the directory given by `-s`/`--source` (default `ch_migrations/`), resolved relative to the current working directory. The flag is global and applies to every `migration` subcommand.
 
 ## Usage
 
 ### General Structure
 
 ```sh
-chm <command> [subcommand] [flags]
+chm [--source <DIR>] <command> [subcommand] [flags]
 ```
+
+### Global flags
+
+- `-s, --source <DIR>` — directory containing migrations (default `ch_migrations`). Global; applies to all `migration` subcommands.
 
 ### Commands and Subcommands
-
-#### Setup
-
-Initial setup of the migration tool. This command creates a folder to contain migrations and a `.toml` file with connection details. It will error if the migrations folder already exists.
-
-```sh
-chm setup --url <CLICKHOUSE_URL> --user <CLICKHOUSE_USER> --password <CLICKHOUSE_PASSWORD> --database <CLICKHOUSE_DB>
-```
-
-- `--url` (Optional): Clickhouse URL. Will look for `CLICKHOUSE_URL` environment variable if not provided.
-- `--user` (Optional): Clickhouse user. Will look for `CLICKHOUSE_USER` environment variable if not provided.
-- `--password` (Optional): Clickhouse password. Will look for `CLICKHOUSE_PASSWORD` environment variable if not provided.
-- `--database` (Optional): Clickhouse database. Will look for `CLICKHOUSE_DB` environment variable if not provided.
 
 #### Migration
 
@@ -81,34 +85,34 @@ chm migration revert
 
 ## Example
 
-1. **Setup the Migration Tool**
-
-   ```sh
-   chm setup --url http://localhost:8123 --user default --password password --database my_database
-   ```
-
-2. **Generate a New Migration**
+1. **Generate a New Migration**
 
    ```sh
    chm migration generate create_users_table
    ```
 
-3. **Run Pending Migrations**
+2. **Run Pending Migrations**
 
    ```sh
    chm migration run
    ```
 
-4. **Redo the Latest Migration**
+3. **Redo the Latest Migration**
 
    ```sh
    chm migration redo
    ```
 
-5. **Revert the Last Migration**
+4. **Revert the Last Migration**
 
    ```sh
    chm migration revert
+   ```
+
+5. **Run Migrations from a Custom Directory**
+
+   ```sh
+   chm migration run --source migrations/clickhouse
    ```
 
 ## Contributing

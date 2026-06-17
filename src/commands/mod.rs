@@ -1,12 +1,10 @@
 use clap::{Args, Parser, Subcommand};
-
-use crate::tools::migrations::SetupArgs;
+use std::path::PathBuf;
 
 pub mod generate;
 pub mod redo;
 pub mod revert;
 pub mod run;
-pub mod setup;
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -14,13 +12,13 @@ pub mod setup;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
+
+    #[arg(long, short = 's', global = true, default_value = "ch_migrations", help = "Directory containing migrations")]
+    pub source: PathBuf,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Creates a folder to contain migrations and a .toml file with connection details, will error
-    /// if migrations folder already exists.
-    Setup(SetupArgs),
     /// Commands to mutate migrations
     #[command(subcommand)]
     Migration(MigrationCommands),

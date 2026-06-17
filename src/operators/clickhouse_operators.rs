@@ -2,7 +2,7 @@ use chrono::Utc;
 use clickhouse::{Client, Row};
 use serde::{Deserialize, Serialize};
 
-use crate::{errors::CLIError, tools::migrations::SetupArgs};
+use crate::errors::CLIError;
 
 use super::migrations_operators::MigrationOnDisk;
 
@@ -43,22 +43,20 @@ pub async fn check_if_migrations_table_exists(
     Ok(!table_exists.is_empty())
 }
 
-pub async fn get_clickhouse_client_and_ping(args: SetupArgs) -> Result<Client, CLIError> {
-    let mut client = Client::default().with_url(
-        args.url
-            .ok_or(CLIError::BadArgs("Missing URL".to_string()))?,
-    );
+pub async fn get_clickhouse_client_and_ping() -> Result<Client, CLIError> {
+    let url = std::env::var("CLICKHOUSE_URL")
+        .map_err(|_| CLIError::BadArgs("Missing CLICKHOUSE_URL env var".to_string()))?;
+    let database = std::env::var("CLICKHOUSE_DB")
+        .map_err(|_| CLIError::BadArgs("Missing CLICKHOUSE_DB env var".to_string()))?;
 
-    if let Some(user) = args.user {
+    let mut client = Client::default().with_url(url).with_database(database);
+
+    if let Ok(user) = std::env::var("CLICKHOUSE_USER") {
         client = client.with_user(user);
     }
 
-    if let Some(password) = args.password {
+    if let Ok(password) = std::env::var("CLICKHOUSE_PASSWORD") {
         client = client.with_password(password);
-    }
-
-    if let Some(database) = args.database {
-        client = client.with_database(database);
     }
 
     client.query("SELECT 1").execute().await?;
@@ -120,12 +118,11 @@ pub async fn undo_migration(
     migration: MigrationOnDisk,
 ) -> Result<(), CLIError> {
     let down_query = migration.get_down_query().await?;
-    let mut queries = down_query
+    let queries = down_query
         .split(';')
+        .map(|s| s.trim())
         .filter(|s| !s.is_empty())
-        .collect::<Vec<&str>>();
-
-    queries.truncate(queries.len().saturating_sub(1));
+        .collect::<Vec<_>>();
 
     println!("Reverting migration {}", migration.name);
 
@@ -147,3 +144,13 @@ pub async fn undo_migration(
     Ok(())
 }
 
+pub async fn get_last_migration_from_clickhouse(
+    client: clickhouse::Client,
+) -> Result<Option<MigrationRow>, CLIError> {
+    let mut rows = client
+        .query("SELECT ?fields FROM ch_migrations ORDER BY ran_at DESC, version DESC LIMIT 1")
+        .fetch_all::<MigrationRow>()
+        .await?;
+
+    Ok(rows.pop())
+}
